@@ -12,6 +12,7 @@
 # Import stuff here
 import sys
 
+# Define global variables/lists/dictionaries
 root = ""
 loggedInUser = ":" # Default is : since that's an illigal character for passwords
 users = {}
@@ -150,7 +151,7 @@ def Usergrp(username, groupName):
 def Mkfile(filename):
     if CheckLogin():
         if filename not in files:
-            files[filename] = (loggedInUser, 'nil', 'rw-', '---', '---')
+            files[filename] = [loggedInUser, 'nil', 'rw-', '---', '---']
             print('{0} was created\n',filename)
         else:
             print('The file could not be created\n')
@@ -165,7 +166,7 @@ def Chmod(filename,permissions):
                 perm = permissions.split()
                 if ValidPermissions(perm):
                     print('File permissions are set\n')
-                    files[filename] = (files[filename][0],files[filename][1],perm[0],perm[1],perm[2])
+                    files[filename] = [files[filename][0],files[filename][1],perm[0],perm[1],perm[2]]
                 else:
                     print('File arguments are incorrect\n')
             else:
@@ -270,7 +271,7 @@ def WriteCmd(filename,text):
     return;
 
 def ExecuteCmd(filename):
-    if CheckLogion():
+    if CheckLogin():
         if filename in files:
             fileInfo = files[filename]
             if loggedInUser == fileInfo[0]:
