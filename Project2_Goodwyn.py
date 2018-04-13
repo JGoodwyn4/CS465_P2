@@ -95,11 +95,11 @@ def Useradd(username,password):
     if loggedInUser == root:
         if username not in users:
             users[username] = password
-            print('The user {0} was added\n'.format(username))
+            print('The user {0} was added'.format(username))
         else:
-            print('The user {0} could not be added\n'.format(username))
+            print('The user {0} could not be added'.format(username))
     else:
-        print('Root user must be logged in to add a new user\n')
+        print('Root user must be logged in to add a new user')
     return;
 
 def Login(username,password):
@@ -107,20 +107,23 @@ def Login(username,password):
     if not CheckLogin():
         if username in users:
             if users[username] != password:
-                print('One of the user credentials was incorrect\n')
+                print('One of the user credentials was incorrect')
             else:
                 loggedInUser = username;
-                print('{0} logged in\n'.format(username))
+                print('{0} logged in'.format(username))
         else:
-            print('One of the user credentials was incorrect\n')
+            print('One of the user credentials was incorrect')
     else:
-        print('A user is already logged in\n')
+        print('A user is already logged in')
     return;
 
 def Logout():
     global loggedInUser
-    print('Logging out current user {0}\n'.format(loggedInUser))
-    loggedInUser = ':'
+    if loggedInUser != ':':
+        print('Logging out current user {0}'.format(loggedInUser))
+        loggedInUser = ':'
+    else:
+        print('No user is logged in')
     return;
 
 def Groupadd(groupName):
@@ -128,35 +131,38 @@ def Groupadd(groupName):
         if groupName not in groups:
             if groupName != 'nil':
                 groups[groupName] = []
-                print('The group {0} was added\n'.format(groupName))
+                print('The group {0} was added'.format(groupName))
             else:
-                print('A group cannot be called "nil"\n')
+                print('A group cannot be called "nil"')
         else:
-            print('Could not add the group {0}\n'.format(groupName))
+            print('Could not add the group {0}'.format(groupName))
     else:
-        print('Root user must be logged in to add a new group\n')
+        print('Root user must be logged in to execute this command')
     return;
 
 def Usergrp(username, groupName):
-    if username in users and groupName in groups:
-        if username not in groups[groupName]:
-            groups[groupName].append(username)
-            print('{0} was added to {1}\n'.format(username,groupName))
+    if loggedInUser == root:
+        if username in users and groupName in groups:
+            if username not in groups[groupName]:
+                groups[groupName].append(username)
+                print('{0} was added to {1}'.format(username,groupName))
+            else:
+                print('{0} is already in {1}'.format(username,groupName))
         else:
-            print('{0} is already in {1}\n'.format(username,groupName))
+            print('One of the supplied arguments was incorrect')
     else:
-        print('One of the supplied arguments was incorrect\n')
+        print('Root user must be logged in to execute this command')
     return;
 
 def Mkfile(filename):
     if CheckLogin():
         if filename not in files:
             files[filename] = [loggedInUser, 'nil', 'rw-', '---', '---']
-            print('{0} was created\n'.format(filename))
+            print('{0} was created'.format(filename))
         else:
-            print('The file could not be created\n')
+            print('The file could not be created')
     else:
-        print('A user must be logged in to execute this command\n')
+        print('A user must be logged in to execute this command')
     return;
 
 def Chmod(filename,permissions):
@@ -165,16 +171,16 @@ def Chmod(filename,permissions):
             if (loggedInUser == root or loggedInUser == files[filename][0]):
                 perm = permissions.split()
                 if ValidPermissions(perm):
-                    print('File permissions for {0} are set\n'.format(filename))
+                    print('File permissions for {0} are set'.format(filename))
                     files[filename] = [files[filename][0],files[filename][1],perm[0],perm[1],perm[2]]
                 else:
-                    print('File arguments are incorrect\n')
+                    print('File arguments are incorrect')
             else:
-                print('Only the file owner or root user may execute this command\n')
+                print('Only the file owner or root user may execute this command')
         else:
-            print('The command could not be executed\n')
+            print('The command could not be executed')
     else:
-        print('A user must be logged in to execute this command\n')
+        print('A user must be logged in to execute this command')
     return;
 
 def Chown(filename,username):
@@ -183,9 +189,9 @@ def Chown(filename,username):
             files[filename][0] = username
             print('{0} was set as the owner of {1}'.format(username,filename))
         else:
-            print('The command was unable to be executed\n')
+            print('The command was unable to be executed')
     else:
-        print('Only the root user may execute this command\n')
+        print('Only the root user may execute this command')
     return;
 
 def Chgrp(filename,groupName):
@@ -193,22 +199,22 @@ def Chgrp(filename,groupName):
         if filename in files and groupName in groups:
             if loggedInUser == root:
                 files[filename][1] = groupName
-                print('{0} was assigned to {1}\n'.format(groupName,filename))
+                print('{0} was assigned to {1}'.format(groupName,filename))
 
             elif loggedInUser == files[filename][0]:
                 if loggedInUser in groups[groupName]:
                     files[filename][1] = groupName
-                    print('{0} was assigned to {1}\n'.format(groupName,filename))
+                    print('{0} was assigned to {1}'.format(groupName,filename))
 
                 else:
-                    print('The file owner must belong to the group specified\n')
+                    print('The file owner must belong to the group specified')
 
             else:
-                print('Only the file owner or root user may execute this command\n')
+                print('Only the file owner or root user may execute this command')
         else:
-            print('The command could not be executed\n')
+            print('The command could not be executed')
     else:
-        print('Must be logged in to execute command\n')
+        print('Must be logged in to execute command')
     return;
 
 def ReadCmd(filename):
@@ -218,27 +224,27 @@ def ReadCmd(filename):
             if loggedInUser == fileInfo[0]:
                 if fileInfo[2][0] == 'r':
                     # Allow to read file
-                    print('{0} read file {1}\n'.format(loggedInUser,filename))
+                    print('{0} read file {1}'.format(loggedInUser,filename))
                 else:
-                    print('Permission denied\n')
+                    print('Permission denied')
 
             elif fileInfo[1] != 'nil' and loggedInUser in groups[fileInfo[1]]:
                 if fileInfo[3][0] == 'r':
-                    print('{0} read file {1}\n'.format(loggedInUser,filename))
+                    print('{0} read file {1}'.format(loggedInUser,filename))
                 else:
-                    print('Permission denied\n')
+                    print('Permission denied')
 
             else:
                 if fileInfo[4][0] == 'r':
-                    print('{0} read file {1}\n'.format(loggedInUser,filename))
+                    print('{0} read file {1}'.format(loggedInUser,filename))
                 else:
-                    print('Permission denied\n')
+                    print('Permission denied')
 
         else:
-            print('Permission denied\n')
+            print('Permission denied')
 
     else:
-        print('User must be logged in to execute command\n')
+        print('User must be logged in to execute command')
     return;
 
 def WriteCmd(filename,text):
@@ -247,27 +253,27 @@ def WriteCmd(filename,text):
             fileInfo = files[filename]
             if loggedInUser == fileInfo[0]:
                 if fileInfo[2][1] == 'w':
-                    print('{0} wrote "{1}" to file {2}\n'.format(loggedInUser,text,filename))
+                    print('{0} wrote "{1}" to file {2}'.format(loggedInUser,text,filename))
                 else:
-                    print('Permission denied\n')
+                    print('Permission denied')
 
             elif fileInfo[1] != 'nil' and loggedInUser in groups[fileInfo[1]]:
                 if fileInfo[3][1] == 'w':
-                    print('{0} wrote "{1}" to file {2}\n'.format(loggedInUser,text,filename))
+                    print('{0} wrote "{1}" to file {2}'.format(loggedInUser,text,filename))
                 else:
-                    print('Permission denied\n')
+                    print('Permission denied')
 
             else:
                 if fileInfo[4][1] == 'w':
-                    print('{0} wrote "{1}" to file {2}\n'.format(loggedInUser,text,filename))
+                    print('{0} wrote "{1}" to file {2}'.format(loggedInUser,text,filename))
                 else:
-                    print('Permission denied\n')
+                    print('Permission denied')
                     
         else:
-            print('Permission denied\n')
+            print('Permission denied')
 
     else:
-        print('User must be logged in to execute command\n')
+        print('User must be logged in to execute command')
     return;
 
 def ExecuteCmd(filename):
@@ -276,40 +282,40 @@ def ExecuteCmd(filename):
             fileInfo = files[filename]
             if loggedInUser == fileInfo[0]:
                 if fileInfo[2][2] == 'x':
-                    print('{0} executed successfully\n'.format(filename))
+                    print('{0} executed successfully'.format(filename))
                 else:
-                    print('Permission denied\n')
+                    print('Permission denied')
 
             elif fileInfo[1] != 'nil' and loggedInUser in groups[fileInfo[1]]:
                 if fileInfo[3][2] == 'x':
-                    print('{0} executed successfully\n'.format(filename))
+                    print('{0} executed successfully'.format(filename))
                 else:
-                    print('Permission denied\n')
+                    print('Permission denied')
 
             else:
                 if fileInfo[4][2] == 'x':
-                    print('{0} executed successfully\n'.format(filename))
+                    print('{0} executed successfully'.format(filename))
                 else:
-                    print('Permission denied\n')
+                    print('Permission denied')
 
         else:
-            print('Permission denied\n')
+            print('Permission denied')
 
     else:
-        print('User must be logged in to execute command\n')
+        print('User must be logged in to execute command')
     return;
 
 def LSCmd(filename):
     if filename in files:
         fileInfo = files[filename]
-        print('{0}: {1} {2} {3} {4} {5}\n'.format(filename, fileInfo[0], fileInfo[1], fileInfo[2], fileInfo[3], fileInfo[4]))
+        print('{0}: {1} {2} {3} {4} {5}'.format(filename, fileInfo[0], fileInfo[1], fileInfo[2], fileInfo[3], fileInfo[4]))
 
     else:
-        print('The command could not be executed\n')
+        print('The command could not be executed')
     return;
 
 def EndCmd():
-    print('End command reached\n')
+    print('End command reached')
     return;
 
 # MAIN PROGRAM AFTER ALL METHODS ARE DEFINED
@@ -323,13 +329,13 @@ if len(args) == 2:
     rootTokens = lines[0].split(' ',2)
     if (len(rootTokens) == 3 and rootTokens[0] == 'useradd' and ValidUsername(rootTokens[1]) and ValidPassword(rootTokens[2])):
         # Normal Operations
-        print('Added root user {0}\n'.format(rootTokens[1]))
+        print('Added root user {0}'.format(rootTokens[1]))
         root = rootTokens[1]
         users[root] = rootTokens[2]
         MainProcess(lines[1:])
     else:
         # First line was incorrect
-        print('First line incorrect\n')
+        print('First line incorrect')
     
 else:
     print('Incorrect arguments')
