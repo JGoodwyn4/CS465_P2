@@ -15,9 +15,13 @@ import sys
 # Define global variables/lists/dictionaries
 root = ""
 loggedInUser = ":" # Default is : since that's an illigal character for passwords
-users = {}
 groups = {}
 files = {}
+
+# Initialize audit and account file. Overwrites files
+auditFile = open('audit.txt','w')
+acctFile = open('accounts.txt','w')
+acctFile.close() # I close the accounts writer because I want to separate when I'm reading and writing into separate processes that I can call when needed
 
 def MainProcess(commands):
     for line in commands:
@@ -67,9 +71,7 @@ def MainProcess(commands):
             return;
             
         else:
-            print('Invalid Command\n')
-
-        print('\n')
+            print('Error: unknown command encountered\n')
             
     return;
 
@@ -91,251 +93,446 @@ def ValidPermissions(permissions):
 def ValidAccess(access):
     return (access[0] == 'r' or access[0] == '-') and (access[1] == 'w' or access[1] == '-') and (access[2] == 'x' or access[2] == '-');
 
+def WriteUserInfo(username,password):
+	acctWrite = open('accounts.txt','a') # Open accounts file to append
+	acctWrite.write('{0} {1}'.format(username,password)) # Write to file using 'username password' format
+	acctWrite.close()
+	
+	return;
+	
+def GetUserInfo(username):
+	acctRead = open('accounts.txt','r') # Open accounts file to read
+	lines = [line.strip() for line in acctRead.readlines()] # Read all lines in file
+	
+	for line in lines:
+		userInfo = line.split()
+		
+		if userInfo[0] == username:
+			acctRead.close() # Close reader
+			return userInfo[1]; # Return password if the username read equals the input username
+	
+	acctRead.close() # Close reader
+	
+	return ' '; # Return empty password, nothing found
+
+def CheckUser(username):
+	return GetUserInfo(username) != ' '; # Check if returned password isn't empty
+	
 def Useradd(username,password):
     if loggedInUser == root:
-        if username not in users:
-            users[username] = password
-            print('The user {0} was added'.format(username))
-        else:
-            print('The user {0} could not be added'.format(username))
-    else:
-        print('Root user must be logged in to add a new user')
-    return;
+        if not CheckUser(username):
+            WriteUserInfo(username,password) # Write user information to accounts
+			
+            auditFile.write('User {0} created'.format(username))
+			print('User {0} created'.format(username))
+        
+		else:
+			auditFile.write('Error: user {0} already exists'.format(username))
+            print('Error: user {0} already exists'.format(username))
+    
+	else:
+        auditFile.write('Error: only the root user may issue the useradd command')
+		print('Error: only the root user may issue the useradd command')
+    
+	return;
 
 def Login(username,password):
     global loggedInUser
     if not CheckLogin():
-        if username in users:
-            if users[username] != password:
-                print('One of the user credentials was incorrect')
-            else:
-                loggedInUser = username;
-                print('{0} logged in'.format(username))
-        else:
-            print('One of the user credentials was incorrect')
-    else:
-        print('A user is already logged in')
-    return;
+        if CheckUser(username):
+            if GetUserInfo(username) != password:
+                auditFile.write('Login failed: invalid username or password')
+				print('Login failed: invalid username or password')
+            
+			else:
+                loggedInUser = username; # Set logged in user
+                
+				auditFile.write('{0} logged in'.format(username))
+				print('{0} logged in'.format(username))
+        
+		else:
+            auditFile.write('Login failed: invalid username or password')
+			print('Login failed: invalid username or password')
+    
+	else:
+        auditFile.write('Login failed: simultaneous login not permitted')
+		print('Login failed: simultaneous login not permitted')
+    
+	return;
 
 def Logout():
     global loggedInUser
     if loggedInUser != ':':
-        print('Logging out current user {0}'.format(loggedInUser))
-        loggedInUser = ':'
-    else:
-        print('No user is logged in')
-    return;
+        auditFile.write('User {0} logged out'.format(loggedInUser))
+		print('User {0} logged out'.format(loggedInUser))
+        
+		loggedInUser = ':'
+		
+	else:
+        auditFile.write('Logout error: no users are logged in')
+		print('Logout error: no users are logged in')
+    
+	return;
 
 def Groupadd(groupName):
     if loggedInUser == root:
         if groupName not in groups:
             if groupName != 'nil':
                 groups[groupName] = []
-                print('The group {0} was added'.format(groupName))
-            else:
-                print('A group cannot be called "nil"')
-        else:
-            print('Could not add the group {0}'.format(groupName))
-    else:
-        print('Root user must be logged in to execute this command')
-    return;
+                
+				auditFile.write('Group {0} created'.format(groupName))
+				print('Group {0} created'.format(groupName))
+            
+			else:
+                auditFile.write('Error: group name cannot be "nil"')
+				print('Error: group name cannot be "nil"')
+        
+		else:
+            auditFile.write('Error: group {0} already exists'.format(groupName))
+			print('Error: group {0} already exists'.format(groupName))
+    
+	else:
+        auditFile.write('Error: only the root user may issue the groupadd command')
+		print('Error: only the root user may issue the groupadd command')
+    
+	return;
 
 def Usergrp(username, groupName):
     if loggedInUser == root:
-        if username in users and groupName in groups:
+        if CheckUser(username) and groupName in groups:
             if username not in groups[groupName]:
                 groups[groupName].append(username)
-                print('{0} was added to {1}'.format(username,groupName))
-            else:
-                print('{0} is already in {1}'.format(username,groupName))
-        else:
-            print('One of the supplied arguments was incorrect')
-    else:
-        print('Root user must be logged in to execute this command')
-    return;
+                
+				auditFile.write('User {0} added to group {1}'.format(username,groupName))
+				print('User {0} added to group {1}'.format(username,groupName))
+            
+			else:
+                auditFile.write('Error: user {0} is already in group {1}'.format(username,groupName))
+				print('Error: user {0} is already in group {1}'.format(username,groupName))
+        
+		else:
+            auditFile.write('Error with usergrp: username or group could not be found')
+			print('Error with usergrp: username or group could not be found')
+    
+	else:
+        auditFile.write('Error: only the root user may issue the usergrp command')
+		print('Error: only the root user may issue the usergrp command')
+    
+	return;
 
 def Mkfile(filename):
     if CheckLogin():
         if filename not in files:
             files[filename] = [loggedInUser, 'nil', 'rw-', '---', '---']
-            print('{0} was created'.format(filename))
-        else:
-            print('The file could not be created')
-    else:
-        print('A user must be logged in to execute this command')
-    return;
+            
+			auditFile.write('File {0} with owner {1} and default permissions created'.format(filename,loggedInUser))
+			print('File {0} with owner {1} and default permissions created'.format(filename,loggedInUser))
+        
+		else:
+            auditFile.write('Error: the file {0} already exists'.format(filename))
+			print('Error: the file {0} already exists'.format(filename))
+    
+	else:
+        auditFile.write('Error: user must be logged in to issue the mkfile command')
+		print('Error: user must be logged in to issue the mkfile command')
+    
+	return;
 
 def Chmod(filename,permissions):
     if CheckLogin():
         if filename in files:
             if (loggedInUser == root or loggedInUser == files[filename][0]):
-                perm = permissions.split()
+                perm = permissions.split() # Split the permissions input to get the owner, group, and other permissions
+				
+				# Check if permissions follow correct format
                 if ValidPermissions(perm):
-                    print('File permissions for {0} are set'.format(filename))
+                    auditFile.write('Permissions for {0} set to {1} {2} {3} by {4}'.format(filename,perm[0],perm[1],perm[2],loggedInUser))
+					print('Permissions for {0} set to {1} {2} {3} by {4}'.format(filename,perm[0],perm[1],perm[2],loggedInUser))
+					
                     files[filename] = [files[filename][0],files[filename][1],perm[0],perm[1],perm[2]]
-                else:
-                    print('File arguments are incorrect')
-            else:
-                print('Only the file owner or root user may execute this command')
-        else:
-            print('The command could not be executed')
-    else:
-        print('A user must be logged in to execute this command')
-    return;
+                
+				else:
+                    auditFile.write('Error: the file permissions do not follow the correct format')
+					print('Error: the file permissions do not follow the correct format')
+            
+			else:
+                auditFile.write('Error: only the root user or file owner may issue the chmod command')
+				print('Error: only the root user or file owner may issue the chmod command')
+        
+		else:
+            auditFile.write('Error with chmod: file {0} not found'.format(filename))
+			print('Error with chmod: file {0} not found'.format(filename))
+    
+	else:
+        auditFile.write('Error: user must be logged in to issue the chmod command')
+		print('Error: user must be logged in to issue the chmod command')
+    
+	return;
 
 def Chown(filename,username):
     if loggedInUser == root:
-        if username in users and filename in files:
+        if CheckUser(username) and filename in files:
             files[filename][0] = username
-            print('{0} was set as the owner of {1}'.format(username,filename))
-        else:
-            print('The command was unable to be executed')
-    else:
-        print('Only the root user may execute this command')
-    return;
+            
+			auditFile.write('Owner of {0} changed to {1}'.format(filename,username))
+			print('Owner of {0} changed to {1}'.format(filename,username))
+        
+		else:
+            auditFile.write('Error with chown: file {0} not found'.format(filename))
+			print('Error with chown: file {0} not found'.format(filename))
+    
+	else:
+        auditFile.write('Error: only the root user may issue the chown command')
+		print('Error: only the root user may issue the chown command')
+    
+	return;
 
 def Chgrp(filename,groupName):
     if CheckLogin():
         if filename in files and groupName in groups:
             if loggedInUser == root:
-                files[filename][1] = groupName
-                print('{0} was assigned to {1}'.format(groupName,filename))
+                files[filename][1] = groupName # Re-assign the group name to file info
+                
+				auditFile.write('Group for {0} set to {1} by {2}'.format(filename,groupName,loggedInUser))
+				print('Group for {0} set to {1} by {2}'.format(filename,groupName,loggedInUser))
 
             elif loggedInUser == files[filename][0]:
-                if loggedInUser in groups[groupName]:
-                    files[filename][1] = groupName
-                    print('{0} was assigned to {1}'.format(groupName,filename))
+                
+				# Check if user is in the group specified
+				if loggedInUser in groups[groupName]:
+                    files[filename][1] = groupName # Re-assign the group name to file info
+                    
+					auditFile.write('Group for {0} set to {1} by {2}'.format(filename,groupName,loggedInUser))
+					print('Group for {0} set to {1} by {2}'.format(filename,groupName,loggedInUser))
 
                 else:
-                    print('The file owner must belong to the group specified')
+                    auditFile.write('Error with chgrp: user {0} is not a member of group {1}'.format(loggedInUser,groupName))
+					print('Error with chgrp: user {0} is not a member of group {1}'.format(loggedInUser,groupName))
 
             else:
-                print('Only the file owner or root user may execute this command')
-        else:
-            print('The command could not be executed')
-    else:
-        print('Must be logged in to execute command')
-    return;
+                auditFile.write('Error: only the root user or file owner may issue the chmod command')
+				print('Error: only the root user or file owner may issue the chmod command')
+        
+		else:
+            auditFile.write('Error with chgrp: filename or group was not found')
+			print('Error with chgrp: filename or group was not found')
+   
+   else:
+        auditFile.write('Error: user must be logged in to issue the chgrp command')
+		print('Error: user must be logged in to issue the chgrp command')
+    
+	return;
 
+def ReadText(filename):
+	inputText = open(filename,'r')
+	lines = [line.strip() for line in inputText.readlines()]
+	
+	auditFile.write('User {0} reads {1} as:'.format(loggedInUser,filename))
+	print('User {0} reads {1} as:'.format(loggedInUser,filename))
+	
+	# Print each line
+	for line in lines:
+		auditFile.write(line)
+		print(line)
+
+	return;
+	
 def ReadCmd(filename):
     if CheckLogin():
         if filename in files:
-            fileInfo = files[filename]
+            fileInfo = files[filename] # Get file info from files dictionary
+			
             if loggedInUser == fileInfo[0]:
                 if fileInfo[2][0] == 'r':
-                    # Allow to read file
-                    print('{0} read file {1}'.format(loggedInUser,filename))
-                else:
-                    print('Permission denied')
+                    auditFile.write('{0} read file {1}'.format(loggedInUser,filename))
+					print('{0} read file {1}'.format(loggedInUser,filename))
+                
+				else:
+                    auditFile.write('User {0} denied read access to {1}'.format(loggedInUser,filename))
+					print('User {0} denied read access to {1}'.format(loggedInUser,filename))
 
             elif fileInfo[1] != 'nil' and loggedInUser in groups[fileInfo[1]]:
                 if fileInfo[3][0] == 'r':
-                    print('{0} read file {1}'.format(loggedInUser,filename))
-                else:
-                    print('Permission denied')
+                    auditFile.write('{0} read file {1}'.format(loggedInUser,filename))
+					print('{0} read file {1}'.format(loggedInUser,filename))
+                
+				else:
+                    auditFile.write('User {0} denied read access to {1}'.format(loggedInUser,filename))
+					print('User {0} denied read access to {1}'.format(loggedInUser,filename))
 
             else:
                 if fileInfo[4][0] == 'r':
-                    print('{0} read file {1}'.format(loggedInUser,filename))
-                else:
-                    print('Permission denied')
+                    auditFile.write('{0} read file {1}'.format(loggedInUser,filename))
+					print('{0} read file {1}'.format(loggedInUser,filename))
+                
+				else:
+                    auditFile.write('User {0} denied read access to {1}'.format(loggedInUser,filename))
+					print('User {0} denied read access to {1}'.format(loggedInUser,filename))
 
         else:
-            print('Permission denied')
+            auditFile.write('User {0} denied read access to {1}'.format(loggedInUser,filename))
+			print('User {0} denied read access to {1}'.format(loggedInUser,filename))
 
     else:
-        print('User must be logged in to execute command')
-    return;
+        auditFile.write('Error: user must be logged in to issue the read command')
+		print('Error: user must be logged in to issue the read command')
+    
+	return;
+	
+def WriteText(filename,text):
+	outputFile = open(filename,'a') # Open file
+	outputFile.write(text) # Write text
+	outputFile.close() # Close file
+	
+	return;
 
 def WriteCmd(filename,text):
     if CheckLogin():
         if filename in files:
-            fileInfo = files[filename]
-            if loggedInUser == fileInfo[0]:
+            fileInfo = files[filename] # Get file info from files dictionary
+            
+			if loggedInUser == fileInfo[0]:
                 if fileInfo[2][1] == 'w':
-                    print('{0} wrote "{1}" to file {2}'.format(loggedInUser,text,filename))
-                else:
-                    print('Permission denied')
+                    auditFile.write('User {0} wrote to {1}: {2}'.format(loggedInUser,filename,text))
+					print('User {0} wrote to {1}: {2}'.format(loggedInUser,filename,text))
+                
+					WriteText(filename,text)
+				else:
+                    auditFile.write('User {0} denied write access to {1}'.format(loggedInUser,filename))
+					print('User {0} denied write access to {1}'.format(loggedInUser,filename))
 
             elif fileInfo[1] != 'nil' and loggedInUser in groups[fileInfo[1]]:
                 if fileInfo[3][1] == 'w':
-                    print('{0} wrote "{1}" to file {2}'.format(loggedInUser,text,filename))
-                else:
-                    print('Permission denied')
+                    auditFile.write('User {0} wrote to {1}: {2}'.format(loggedInUser,filename,text))
+					print('User {0} wrote to {1}: {2}'.format(loggedInUser,filename,text))
+                
+					WriteText(filename,text)
+				else:
+                    auditFile.write('User {0} denied write access to {1}'.format(loggedInUser,filename))
+					print('User {0} denied write access to {1}'.format(loggedInUser,filename))
 
             else:
                 if fileInfo[4][1] == 'w':
-                    print('{0} wrote "{1}" to file {2}'.format(loggedInUser,text,filename))
-                else:
-                    print('Permission denied')
+                    auditFile.write('User {0} wrote to {1}: {2}'.format(loggedInUser,filename,text))
+					print('User {0} wrote to {1}: {2}'.format(loggedInUser,filename,text))
+                
+					WriteText(filename,text)
+				else:
+                    auditFile.write('User {0} denied write access to {1}'.format(loggedInUser,filename))
+					print('User {0} denied write access to {1}'.format(loggedInUser,filename))
                     
         else:
-            print('Permission denied')
+            auditFile.write('User {0} denied write access to {1}'.format(loggedInUser,filename))
+			print('User {0} denied write access to {1}'.format(loggedInUser,filename))
 
     else:
-        print('User must be logged in to execute command')
-    return;
+        auditFile.write('Error: user must be logged in to issue the write command')
+		print('Error: user must be logged in to issue the write command')
+    
+	return;
 
 def ExecuteCmd(filename):
     if CheckLogin():
         if filename in files:
-            fileInfo = files[filename]
-            if loggedInUser == fileInfo[0]:
+            fileInfo = files[filename] # Get file info from files dictionary
+            
+			if loggedInUser == fileInfo[0]:
                 if fileInfo[2][2] == 'x':
-                    print('{0} executed successfully'.format(filename))
-                else:
-                    print('Permission denied')
+                    auditFile.write('File {0} executed by {1}'.format(filename,loggedInUser))
+					print('File {0} executed by {1}'.format(filename,loggedInUser))
+                
+				else:
+                    auditFile.write('User {0} denied execute access to {1}'.format(loggedInUser,filename))
+					print('User {0} denied execute access to {1}'.format(loggedInUser,filename))
 
             elif fileInfo[1] != 'nil' and loggedInUser in groups[fileInfo[1]]:
                 if fileInfo[3][2] == 'x':
-                    print('{0} executed successfully'.format(filename))
-                else:
-                    print('Permission denied')
+                    auditFile.write('File {0} executed by {1}'.format(filename,loggedInUser))
+					print('File {0} executed by {1}'.format(filename,loggedInUser))
+                
+				else:
+                    auditFile.write('User {0} denied execute access to {1}'.format(loggedInUser,filename))
+					print('User {0} denied execute access to {1}'.format(loggedInUser,filename))
 
             else:
                 if fileInfo[4][2] == 'x':
-                    print('{0} executed successfully'.format(filename))
-                else:
-                    print('Permission denied')
+                    auditFile.write('File {0} executed by {1}'.format(filename,loggedInUser))
+					print('File {0} executed by {1}'.format(filename,loggedInUser))
+                
+				else:
+                    auditFile.write('User {0} denied execute access to {1}'.format(loggedInUser,filename))
+					print('User {0} denied execute access to {1}'.format(loggedInUser,filename))
 
         else:
-            print('Permission denied')
+            auditFile.write('User {0} denied execute access to {1}'.format(loggedInUser,filename))
+			print('User {0} denied execute access to {1}'.format(loggedInUser,filename))
 
     else:
-        print('User must be logged in to execute command')
-    return;
+        auditFile.write('Error: user must be logged in to issue the execute command')
+		print('Error: user must be logged in to issue the execute command')
+    
+	return;
 
 def LSCmd(filename):
     if filename in files:
-        fileInfo = files[filename]
-        print('{0}: {1} {2} {3} {4} {5}'.format(filename, fileInfo[0], fileInfo[1], fileInfo[2], fileInfo[3], fileInfo[4]))
+        fileInfo = files[filename] # Get file info from file dictionary
+        
+		auditFile.write('{0}: {1} {2} {3} {4} {5}'.format(filename, fileInfo[0], fileInfo[1], fileInfo[2], fileInfo[3], fileInfo[4]))
+		print('{0}: {1} {2} {3} {4} {5}'.format(filename, fileInfo[0], fileInfo[1], fileInfo[2], fileInfo[3], fileInfo[4]))
 
     else:
-        print('The command could not be executed')
-    return;
+        auditFile.write('Error: the file {0} could not be found'.format(filename))
+		print('Error: the file {0} could not be found'.format(filename))
+    
+	return;
 
 def EndCmd():
-    print('End command reached')
+    auditFile.close() # Close audit file writer
+	
+	# Write all the group info
+	groupFile = open('groups.txt','w')
+	
+	for group, members in groups:
+		groupFile.write('{0}: {1}'.format(group,' '.join(members)))
+		
+	groupFile.close()
+	
+	# Write all the file info
+	fileInfoFile = open('files.txt','w')
+	
+	for filename, fileInfo in files:
+		fileInfoFile.write('{0}: {1} {2} {3} {4} {5}'.format(filename, fileInfo[0], fileInfo[1], fileInfo[2], fileInfo[3], fileInfo[4]))
+	
+	fileInfoFile.close()
+	
     return;
 
+# -------------------------------------------------------------------------------------------------
 # MAIN PROGRAM AFTER ALL METHODS ARE DEFINED
 
 args = sys.argv
 if len(args) == 2:
-    fIn = open(args[1],'r')
+    # open input and read all lines
+	fIn = open(args[1],'r') 
     lines = [line.strip() for line in fIn.readlines()]
 
     # Read the first line
     rootTokens = lines[0].split(' ',2)
     if (len(rootTokens) == 3 and rootTokens[0] == 'useradd' and ValidUsername(rootTokens[1]) and ValidPassword(rootTokens[2])):
-        # Normal Operations
-        print('Added root user {0}'.format(rootTokens[1]))
-        root = rootTokens[1]
-        users[root] = rootTokens[2]
-        MainProcess(lines[1:])
+        auditFile.write('User {0} created'.format(rootTokens[1]))
+        print('User {0} created'.format(rootTokens[1]))
+        
+		root = rootTokens[1] # Set the root username to username provided
+		WriteUserInfo(rootTokens[1],rootTokens[2]) # Write user info to accounts
+        
+		# Initiate the main process
+		MainProcess(lines[1:])
     else:
         # First line was incorrect
-        print('First line incorrect')
+        auditFile.write('Error: first command line did not follow the correct format')
+		print('Error: first command line did not follow the correct format')
+		
+		auditFile.close() # Close the audit file since the end command won't be reached here
     
 else:
-    print('Incorrect arguments')
+    print('Error: the commandline arguments are incorrect. Enter "python executableFilename commandTextFilename"')
