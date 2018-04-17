@@ -1,0 +1,41 @@
+User root created
+root logged in
+User alice created
+User bob created
+Group students created
+User alice added to group students
+User bob added to group students
+User tom created
+User root logged out
+alice logged in
+File file1.txt with owner alice and default permissions created
+User alice wrote to file1.txt: Text from Alice in file1
+File file2.txt with owner alice and default permissions created
+User alice wrote to file2.txt: Text from Alice in file2
+Permissions for file2.txt set to rw- rw- r-- by alice
+Group for file2.txt set to students by alice
+User alice logged out
+tom logged in
+User tom denied read access to file1.txt
+User tom reads file2.txt as:
+Text from Alice in file2
+User tom denied write access to file2.txt
+Login failed: simultaneous login not permitted
+User tom logged out
+Login failed: invalid username or password
+bob logged in
+User bob wrote to file2.txt: Text from Bob in file2
+User bob reads file2.txt as:
+Text from Alice in file2
+Text from Bob in file2
+User bob logged out
+root logged in
+Owner of file1.txt changed to tom
+file1.txt: tom nil rw- --- ---
+User root logged out
+tom logged in
+User tom wrote to file1.txt: Text from Tom in file1
+User tom reads file1.txt as:
+Text from Alice in file1
+Text from Tom in file1
+User tom logged out
